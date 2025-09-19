@@ -1,0 +1,36 @@
+name: Build and Test and Publish (master)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET for main project build
+        uses: actions/setup-dotnet@v3
+      - name: Install local tools
+        run: dotnet tool restore
+      - name: Paket restore
+        run: dotnet paket restore
+      - name: Build
+        run: dotnet fake run build.fsx -t Release
+      - name: Zip
+        run: zip -j FsLexYacc-${{ github.ref_name }}-CLI.zip bin/fsyacc.*.nupkg bin/fslex.*.nupkg
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
+        with:
+          files: FsLexYacc-${{ github.ref_name }}-CLI.zip
